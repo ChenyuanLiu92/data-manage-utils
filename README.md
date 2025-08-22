@@ -1,47 +1,80 @@
-# Robot Data Monitor in RHOS Lab
 
-## 概述
-`monitor_data.py` 是用于监控机器人实验数据目录下 `.hdf5` 文件数量和帧数的脚本。  
-脚本可以统计每个子任务目录的：
+# 机器人数据监控与统计脚本
 
-- Episode 数量（`.hdf5` 文件数）
-- 总帧数（所有 episode 的帧数累加）
-- 总时长（根据帧数和机器人 FPS 换算为小时）
+这是一个用于监控和统计机器人数据（`.hdf5` 文件）的 Python 脚本。它可以扫描指定目录下的文件数量和总帧数，计算每周的增量，并将结果记录到日志文件和可视化的柱状图中。
 
-并生成对应的柱状图，显示本周新增量。图表存储在 `data_stats_log/img_count` 下。
+## 功能特点
 
----
-
-## 功能
-
-1. **统计每个子目录的 episode 数量和总帧数**
-2. **计算新增 episode 数量和新增帧数**
-3. **生成柱状图**
-   - Episode 数量柱状图
-   - 总小时数柱状图（根据帧数 / FPS / 3600）
-   - 柱子顶部显示具体数量或小时数
-   - 本周新增量以绿色显示
-   - y 轴自动比最高柱子高 10%
-   - 柱宽随任务数量动态调整
-4. **日志记录**
-   - 记录每次扫描结果
-   - 日志文件：`data_stats_log/data_monitor.log`
-5. **配置存储**
-   - 上一次扫描的 episode 数量和帧数保存于 `data_stats_log/data_monitor_config.json`
-6. **支持定时模式**
-   - 可每周四 18:00 自动扫描并生成图表
-   - 使用 `schedule` 库进行定时任务
+- **多维度统计**: 统计每个任务（子目录）下的 `episode` 数量（`.hdf5` 文件数）和总 `frame` 数量。
+- **增量计算**: 自动计算每周新增的 `episode` 和 `frame` 数量。
+- **日志记录**: 将每次统计结果追加记录到 **`data_stats_log/data_monitor.log`** 文件中。
+- **数据可视化**: 生成并保存两个柱状图：
+  - **`episode` 柱状图**: 展示每个任务的总 `episode` 数量。
+  - **`hours` 柱状图**: 将总帧数转换为小时，展示每个任务的总数据时长。
+- **灵活运行**: 支持命令行参数，可以立即运行一次扫描，也可以设置为每周定时自动运行。
+- **配置管理**: 使用 **`data_stats_log/data_monitor_config.json`** 文件来保存上次的统计数据，以实现增量计算。
 
 ---
 
-## 依赖
+## 安装与准备
 
-- Python 3.8+
-- `matplotlib`
-- `h5py`
-- `schedule`
+**安装依赖**: 您需要安装以下 Python 库。在终端中运行：
+   
+   ```
+   conda create -n data_monitor python=3.12 -y
 
-安装依赖示例：
+   conda activate data_monitor
 
-```bash
-pip install matplotlib h5py schedule
+   conda install -c conda-forge matplotlib h5py schedule -y
+   ```
+## 目录结构:
+请确保您的数据目录结构如下所示，或者根据需要修改脚本中的 --base-dir 和 --sub-dirs 参数。
+```
+├── your_project/
+│   ├── OCL4Rob/              # <-- 根目录 (--base-dir)
+│   │   ├── pp_two_cube/      # <-- 子目录 (--sub-dirs)
+│   │   │   └── data_001.hdf5
+│   │   └── pour/             # <-- 子目录 (--sub-dirs)
+│   │       └── data_002.hdf5
+├── data_stats_log/           # <-- 脚本自动创建
+│   ├── data_monitor.log
+│   ├── data_monitor_config.json
+│   └── img_count/
+│       ├── episode_chart_20250822.png
+│       └── hour_chart_20250822.png
+└── monitor_robot_data.py
+```
+## 如何使用
+脚本提供了两种主要的运行模式：立即运行和定时模式。
+
+### 模式一：立即运行一次扫描
+使用 --run-now 参数可以立即执行一次完整的数据扫描和统计。这对于首次运行或手动检查非常有用。
+
+```
+python monitor_robot_data.py --run-now
+```
+可选参数：
+
+--base-dir \<path\> : 指定数据根目录。默认为 OCL4Rob。
+
+--sub-dirs \<dir1\> \<dir2\> ... : 指定需要监控的子目录。默认为 pp_two_cube 和 pour。
+
+
+### 模式二：进入定时模式
+使用 --watch 参数，脚本将进入一个循环，并根据 schedule 库的设置在每周四晚上 18:00 自动执行扫描。
+
+
+### 结果输出
+脚本执行后，您将在 data_stats_log/ 目录中找到以下文件：
+
+data_stats_log/data_monitor.log: 日志文件，记录每次统计的文本信息。
+
+data_stats_log/data_monitor_config.json: 配置文件，保存上次的统计数据。
+
+data_stats_log/img_count/: 包含生成的柱状图图片。
+
+每次运行，脚本都会生成最新的柱状图，清晰展示数据增长情况。
+
+### 备注
+
+可以每周按时人工执行脚本统计，也可以设置为Systemd开机自动启动(参考 `monitor_data.sh` 脚本)。
